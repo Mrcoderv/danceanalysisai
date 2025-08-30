@@ -52,43 +52,35 @@ export function PoseDetector({ mode, onPoseDetection, onAnalysisComplete, danceS
     const detectPoses = () => {
       if (!isPlaying || !videoRef.current) return
 
-      // Mock pose data with style-specific variations
-      const getStyleSpecificPoses = () => {
-        const basePose = {
+      const time = Date.now() * 0.001
+      const baseX = 320
+      const baseY = 240
+
+      // Simulate natural body movement with sine waves
+      const bodySwayX = Math.sin(time * 2) * 20
+      const armSwingY = Math.sin(time * 3) * 15
+      const legMovementX = Math.cos(time * 1.5) * 10
+
+      const mockPoses = [
+        {
           keypoints: [
-            { x: 320, y: 100, confidence: 0.9, name: "nose" },
-            { x: 300, y: 150, confidence: 0.8, name: "left_shoulder" },
-            { x: 340, y: 150, confidence: 0.8, name: "right_shoulder" },
-            { x: 280, y: 200, confidence: 0.7, name: "left_elbow" },
-            { x: 360, y: 200, confidence: 0.7, name: "right_elbow" },
-            { x: 260, y: 250, confidence: 0.6, name: "left_wrist" },
-            { x: 380, y: 250, confidence: 0.6, name: "right_wrist" },
-            { x: 310, y: 280, confidence: 0.8, name: "left_hip" },
-            { x: 330, y: 280, confidence: 0.8, name: "right_hip" },
-            { x: 300, y: 350, confidence: 0.7, name: "left_knee" },
-            { x: 340, y: 350, confidence: 0.7, name: "right_knee" },
-            { x: 290, y: 420, confidence: 0.6, name: "left_ankle" },
-            { x: 350, y: 420, confidence: 0.6, name: "right_ankle" },
+            { x: baseX + bodySwayX, y: baseY - 140, confidence: 0.9, name: "nose" },
+            { x: baseX - 50 + bodySwayX, y: baseY - 90, confidence: 0.8, name: "left_shoulder" },
+            { x: baseX + 50 + bodySwayX, y: baseY - 90, confidence: 0.8, name: "right_shoulder" },
+            { x: baseX - 80 + bodySwayX, y: baseY - 40 + armSwingY, confidence: 0.7, name: "left_elbow" },
+            { x: baseX + 80 + bodySwayX, y: baseY - 40 + armSwingY, confidence: 0.7, name: "right_elbow" },
+            { x: baseX - 100 + bodySwayX, y: baseY + 10 + armSwingY, confidence: 0.6, name: "left_wrist" },
+            { x: baseX + 100 + bodySwayX, y: baseY + 10 + armSwingY, confidence: 0.6, name: "right_wrist" },
+            { x: baseX - 30 + bodySwayX, y: baseY + 40, confidence: 0.8, name: "left_hip" },
+            { x: baseX + 30 + bodySwayX, y: baseY + 40, confidence: 0.8, name: "right_hip" },
+            { x: baseX - 35 + legMovementX, y: baseY + 110, confidence: 0.7, name: "left_knee" },
+            { x: baseX + 35 + legMovementX, y: baseY + 110, confidence: 0.7, name: "right_knee" },
+            { x: baseX - 40 + legMovementX, y: baseY + 180, confidence: 0.6, name: "left_ankle" },
+            { x: baseX + 40 + legMovementX, y: baseY + 180, confidence: 0.6, name: "right_ankle" },
           ],
-        }
+        },
+      ]
 
-        // Modify poses based on dance style
-        if (danceStyle === "bhajan-nepali") {
-          // Traditional hand positions for devotional dance
-          basePose.keypoints[5].y = 180 // left_wrist higher
-          basePose.keypoints[6].y = 180 // right_wrist higher
-          basePose.keypoints[5].confidence = 0.9
-          basePose.keypoints[6].confidence = 0.9
-        } else if (danceStyle === "ballet") {
-          // Graceful arm positions
-          basePose.keypoints[5].y = 200
-          basePose.keypoints[6].y = 200
-        }
-
-        return [basePose]
-      }
-
-      const mockPoses = getStyleSpecificPoses()
       onPoseDetection(mockPoses)
 
       // Continue detection

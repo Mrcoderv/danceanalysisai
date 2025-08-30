@@ -22,11 +22,12 @@ export default function DanceAnalysisPage() {
 
   const [musicFile, setMusicFile] = useState<File | null>(null)
   const [isMusicPlaying, setIsMusicPlaying] = useState(false)
-  const [danceStyle, setDanceStyle] = useState<string>("")
-  const [dancePercentage, setDancePercentage] = useState<number | null>(null)
+  const [danceStyle, setDanceStyle] = useState<string>("hip-hop")
+  const [currentStep, setCurrentStep] = useState("")
+  const [stepAccuracy, setStepAccuracy] = useState(0)
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null)
   const [totalDanceTime, setTotalDanceTime] = useState(0)
-  const [activeDanceTime, setActiveDanceTime] = useState(0)
+  const [dancePercentage, setDancePercentage] = useState<number | null>(null)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const musicInputRef = useRef<HTMLInputElement>(null)
@@ -45,22 +46,80 @@ export default function DanceAnalysisPage() {
     setCurrentPoses(poses)
 
     if (poses.length > 0 && isMusicPlaying) {
-      const currentTime = Date.now()
-      if (sessionStartTime) {
-        const isActivelyDancing = poses.some((pose) => pose.keypoints.some((kp: any) => kp.confidence > 0.7))
-
-        if (isActivelyDancing) {
-          setActiveDanceTime((prev) => prev + 100) // Add 100ms of active dance time
-        }
-        setTotalDanceTime(currentTime - sessionStartTime)
-      }
+      analyzeCurrentStep(poses[0])
+      updateDancingTime()
     }
   }
 
-  const handleAnalysisComplete = (data: any) => {
-    setAnalysisData(data)
-    setIsAnalyzing(false)
-    setAnalysisProgress(100)
+  const analyzeCurrentStep = (pose: any) => {
+    const keypoints = pose.keypoints
+    const step = detectDanceStep(keypoints, danceStyle)
+    setCurrentStep(step.name)
+    setStepAccuracy(step.accuracy)
+  }
+
+  const detectDanceStep = (keypoints: any[], style: string) => {
+    const keypointMap = new Map()
+    keypoints.forEach((kp: any) => {
+      keypointMap.set(kp.name, kp)
+    })
+
+    const leftShoulder = keypointMap.get("left_shoulder")
+    const rightShoulder = keypointMap.get("right_shoulder")
+    const leftHip = keypointMap.get("left_hip")
+    const rightHip = keypointMap.get("right_hip")
+    const leftWrist = keypointMap.get("left_wrist")
+    const rightWrist = keypointMap.get("right_wrist")
+
+    if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+      return { name: "Unknown", accuracy: 0 }
+    }
+
+    // Calculate body angles and positions
+    const shoulderWidth = Math.abs(rightShoulder.x - leftShoulder.x)
+    const hipWidth = Math.abs(rightHip.x - leftHip.x)
+    const armSpread = leftWrist && rightWrist ? Math.abs(rightWrist.x - leftWrist.x) : 0
+
+    // Style-specific step detection
+    switch (style) {
+      case "hip-hop":
+        if (armSpread > shoulderWidth * 1.5) {
+          return { name: "Wide Arms", accuracy: Math.min(95, (armSpread / shoulderWidth) * 30) }
+        } else if (hipWidth > shoulderWidth * 1.2) {
+          return { name: "Hip Bounce", accuracy: Math.min(90, (hipWidth / shoulderWidth) * 40) }
+        }
+        return { name: "Basic Step", accuracy: 75 }
+
+      case "ballet":
+        if (leftWrist && rightWrist && leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
+          return { name: "Port de Bras", accuracy: 88 }
+        }
+        return { name: "Ballet Position", accuracy: 80 }
+
+      case "bhajan-nepali":
+        if (leftWrist && rightWrist) {
+          const handsNearHeart = Math.abs(leftWrist.x - rightWrist.x) < shoulderWidth * 0.5
+          if (handsNearHeart) {
+            return { name: "Namaste Gesture", accuracy: 92 }
+          }
+        }
+        return { name: "Devotional Movement", accuracy: 78 }
+
+      case "contemporary":
+        if (armSpread > shoulderWidth * 1.3) {
+          return { name: "Expressive Reach", accuracy: 85 }
+        }
+        return { name: "Flow Movement", accuracy: 82 }
+
+      case "latin":
+        if (hipWidth > shoulderWidth * 1.1) {
+          return { name: "Hip Movement", accuracy: 87 }
+        }
+        return { name: "Latin Step", accuracy: 79 }
+
+      default:
+        return { name: "Basic Movement", accuracy: 70 }
+    }
   }
 
   const handleMusicUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +141,7 @@ export default function DanceAnalysisPage() {
       setIsMusicPlaying(false)
 
       if (totalDanceTime > 0) {
-        const percentage = Math.round((activeDanceTime / totalDanceTime) * 100)
+        const percentage = Math.round((dancePercentage / totalDanceTime) * 100)
         setDancePercentage(Math.min(percentage, 100))
       }
 
@@ -93,8 +152,7 @@ export default function DanceAnalysisPage() {
       setIsMusicPlaying(true)
       setSessionStartTime(Date.now())
       setTotalDanceTime(0)
-      setActiveDanceTime(0)
-      setDancePercentage(null)
+      setDancePercentage(0)
       startAnalysis()
     }
   }
@@ -112,6 +170,27 @@ export default function DanceAnalysisPage() {
         return prev + 10
       })
     }, 500)
+  }
+
+  const updateDancingTime = () => {
+    if (sessionStartTime && currentPoses.length > 0) {
+      const now = Date.now()
+      const sessionDuration = now - sessionStartTime
+      setTotalDanceTime((prev) => prev + 100) // Add 100ms for each detection
+    }
+  }
+
+  const calculateDancingPercentage = () => {
+    if (sessionStartTime) {
+      const totalSessionTime = Date.now() - sessionStartTime
+      const percentage = Math.min(100, (totalDanceTime / totalSessionTime) * 100)
+      setDancePercentage(Math.round(percentage))
+    }
+  }
+
+  const handleAnalysisComplete = () => {
+    setIsAnalyzing(false)
+    calculateDancingPercentage()
   }
 
   return (
@@ -190,6 +269,47 @@ export default function DanceAnalysisPage() {
             </CardContent>
           </Card>
         </div>
+
+        {isMusicPlaying && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Live Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Current Step</p>
+                  <p className="text-xl font-bold text-blue-600">{currentStep}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Step Accuracy</p>
+                  <p className="text-xl font-bold text-green-600">{stepAccuracy}%</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Style</p>
+                  <p className="text-xl font-bold text-purple-600">{danceStyle}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isMusicPlaying && dancePercentage !== null && (
+          <Card className="mb-8 bg-gradient-to-r from-green-50 to-blue-50">
+            <CardHeader>
+              <CardTitle className="text-center text-2xl">Session Complete!</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <p className="text-6xl font-bold text-green-600 mb-4">{dancePercentage}%</p>
+                <p className="text-lg text-gray-700">Dancing Percentage</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  You were actively dancing for {dancePercentage}% of the music duration
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {dancePercentage !== null && (
           <Card className="mb-8 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
