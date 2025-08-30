@@ -31,7 +31,7 @@ dance-tutor/
 ### 1. Clone the project or copy files
 
 ```bash
-git clone https://github.com/mrcoderv/dance-tutor.git
+git clone https://github.com/mrcoderv/danceanalyseai.git
 cd dance-tutor
 ```
 
